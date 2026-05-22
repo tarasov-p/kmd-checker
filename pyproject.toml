@@ -1,0 +1,43 @@
+[project]
+name = "kmd-checker"
+version = "0.1.0"
+description = "Веб-интерфейс проверки чертежей КМД на ошибки артикулов и оформления."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.116",
+    "uvicorn[standard]>=0.35",
+    "click>=8.2",
+    "pydantic>=2.10",
+    "python-multipart>=0.0.20",
+    "sse-starlette>=2.1",
+    "httpx>=0.28",
+    "pymupdf>=1.24",
+    "rapidfuzz>=3.10",
+    "ezdxf>=1.3",
+    "matplotlib>=3.8",
+    "slowapi>=0.1.9",
+    "jinja2>=3.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+    "ruff>=0.14",
+    "mypy>=1.18",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+kmd-checker = "kmd_checker.cli:cli"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

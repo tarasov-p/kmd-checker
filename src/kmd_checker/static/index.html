@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>kmd-checker — проверка чертежей КМД</title>
+<style>
+  :root {
+    --fg:#1a1a1a; --muted:#5c6470; --line:#e2e6eb;
+    --accent:#0b6bcb; --accent-soft:#eaf2fb;
+    --ok:#1e7a3a; --warn:#b07b00; --err:#b3261e;
+  }
+  * { box-sizing: border-box; }
+  html,body { background:#fff; color:var(--fg); margin:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5; padding:40px 24px; font-size:15px;
+  }
+  .wrap { max-width:780px; margin:0 auto; }
+  h1 { font-size:24px; margin:0 0 4px; font-weight:600; }
+  .sub { color:var(--muted); margin-bottom:24px; font-size:14px; }
+  .drop {
+    border:2px dashed var(--line); border-radius:10px;
+    padding:48px 24px; text-align:center; background:#fbfcfd;
+    cursor:pointer; transition:.15s ease;
+  }
+  .drop:hover, .drop.over { border-color:var(--accent); background:var(--accent-soft); }
+  .drop p { margin:6px 0; color:var(--muted); }
+  .drop strong { color:var(--fg); font-weight:600; }
+  input[type=file] { display:none; }
+
+  .progress {
+    margin-top:24px; border:1px solid var(--line); border-radius:8px;
+    padding:14px 18px; background:#fff; display:none;
+  }
+  .progress.on { display:block; }
+  .steps { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .step {
+    font-size:12px; padding:3px 9px; border-radius:14px;
+    border:1px solid var(--line); color:var(--muted); background:#fff;
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+  }
+  .step.active { color:var(--accent); border-color:#cfe2f7; background:var(--accent-soft); }
+  .step.done { color:var(--ok); border-color:#b8e0c2; background:#eaf6ec; }
+  .step.fail { color:var(--err); border-color:#f0c0bc; background:#fbe9e7; }
+
+  .result {
+    margin-top:24px; border:1px solid var(--line); border-radius:8px;
+    padding:16px 20px; background:#fff; display:none;
+  }
+  .result.on { display:block; }
+  .badge {
+    display:inline-block; font-size:12px; padding:3px 10px; border-radius:14px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; vertical-align:middle;
+  }
+  .badge.ok   { color:var(--ok);  background:#eaf6ec; border:1px solid #b8e0c2; }
+  .badge.err  { color:var(--err); background:#fbe9e7; border:1px solid #f0c0bc; }
+  .badge.warn { color:var(--warn);background:#fbf5e3; border:1px solid #f0d8a0; }
+  .badge.muted{ color:var(--muted);background:#f5f7fa;border:1px solid var(--line); }
+
+  .finding {
+    border:1px solid var(--line); border-radius:6px;
+    padding:10px 14px; margin:8px 0; background:#fbfcfd;
+  }
+  .finding .head { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .finding .head .cls { font-family:ui-monospace,Menlo,Consolas,monospace; font-weight:600; }
+  .finding .head .sev { font-size:11px; }
+  .finding .what { margin-top:6px; }
+  .finding .meta { color:var(--muted); font-size:13px; margin-top:6px; }
+  .finding code { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; background:#f5f7fa; padding:1px 5px; border-radius:3px; }
+  .summary { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .summary .verdict { font-size:18px; font-weight:600; }
+  .err-banner { color:var(--err); margin-top:12px; }
+  .secondary { color:var(--muted); font-size:13px; margin-top:8px; }
+  .actions { margin-top:14px; }
+  button.again {
+    border:1px solid var(--line); background:#fff; padding:6px 12px;
+    border-radius:6px; cursor:pointer;
+  }
+  button.again:hover { background:#f5f7fa; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>kmd-checker</h1>
+  <div class="sub">
+    Загрузите PDF / DWG / DXF чертёж КМД — ассистент проверит артикулы и оформление.
+    Конструктивные вопросы (прочность, концентраторы, катет шва) — на ручную проверку.
+    История не сохраняется.
+  </div>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".pdf,.dwg,.dxf,application/pdf">
+    <p><strong>Перетащите файл сюда или нажмите, чтобы выбрать.</strong></p>
+    <p>Поддерживаются: PDF, DWG, DXF. Максимум 100 МБ, до 50 страниц.</p>
+  </label>
+
+  <div class="progress" id="progress">
+    <div><strong>Сессия:</strong> <span id="sid" style="font-family:monospace; font-size:12px"></span></div>
+    <div class="steps" id="steps"></div>
+  </div>
+
+  <div class="result" id="result"></div>
+</div>
+
+<script>
+const ORDER = ["queued","converting","rendering","extracting","rules","judging","done"];
+const HUMAN = {
+  queued: "Очередь",
+  converting: "DWG → PDF",
+  rendering: "Рендер страниц",
+  extracting: "Извлечение фактов",
+  rules: "Проверка правил",
+  judging: "Финальная оценка",
+  done: "Готово",
+  failed: "Ошибка",
+  cancelled: "Отменено",
+};
+const VERDICT = {
+  no_issues: ["Ошибок не найдено", "ok"],
+  errors_found: ["Найдены ошибки", "err"],
+  manual_review_required: ["Требуется ручная проверка", "warn"],
+  not_a_drawing: ["Это не похоже на чертёж", "warn"],
+  unsupported_format: ["Формат не поддерживается", "warn"],
+};
+
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("file");
+const progress = document.getElementById("progress");
+const stepsEl = document.getElementById("steps");
+const sidEl = document.getElementById("sid");
+const resultEl = document.getElementById("result");
+
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add("over");
+}));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove("over");
+}));
+drop.addEventListener("drop", e => {
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function renderSteps(currentStatus) {
+  stepsEl.innerHTML = "";
+  const isFail = currentStatus === "failed" || currentStatus === "cancelled";
+  const currentIdx = ORDER.indexOf(currentStatus);
+  ORDER.forEach((s, i) => {
+    const span = document.createElement("span");
+    span.className = "step";
+    span.textContent = HUMAN[s] || s;
+    if (isFail && i === currentIdx) {
+      span.classList.add("fail");
+    } else if (currentIdx >= 0 && i < currentIdx) {
+      span.classList.add("done");
+    } else if (i === currentIdx) {
+      span.classList.add("active");
+    }
+    stepsEl.appendChild(span);
+  });
+}
+
+function renderResult(s) {
+  if (s.status === "failed") {
+    const human = HUMAN[s.status] || s.status;
+    resultEl.innerHTML = `<div class="summary"><div class="verdict">${human}</div></div>
+      <div class="err-banner">${escapeHtml(s.error || "неизвестная ошибка")}</div>`;
+    resultEl.classList.add("on");
+    return;
+  }
+  const v = s.verdict || "no_issues";
+  const [label, badgeClass] = VERDICT[v] || [v, "muted"];
+  let html = `<div class="summary">
+    <div class="verdict">${label}</div>
+    <span class="badge ${badgeClass}">${v}</span>
+    <span class="badge muted">${(s.findings || []).length} findings</span>
+    <span class="badge muted">$${(s.cost_usd || 0).toFixed(4)}</span>
+    <span class="badge muted">${Math.round((s.duration_ms || 0) / 100) / 10}s</span>
+  </div>`;
+  if (s.reasoning) {
+    html += `<div class="secondary">${escapeHtml(s.reasoning)}</div>`;
+  }
+  (s.findings || []).forEach(f => {
+    const sev = (f.severity || "medium");
+    const sevBadge = sev === "high" ? "err" : sev === "medium" ? "warn" : "muted";
+    html += `<div class="finding">
+      <div class="head">
+        <span class="cls">${escapeHtml(f.class_code)}</span>
+        <span class="badge ${sevBadge} sev">${sev}</span>
+        <span class="badge muted sev">${f.source || ""}</span>
+        <span class="badge muted sev">${f.confidence || ""}</span>
+      </div>
+      <div class="what">${escapeHtml(f.what || "")}</div>
+      <div class="meta">${escapeHtml(f.where || "")}${
+        f.expected || f.actual
+          ? ` · ожидалось <code>${escapeHtml(f.expected || "?")}</code>, фактически <code>${escapeHtml(f.actual || "?")}</code>`
+          : ""
+      }${f.what_to_fix ? ` · что сделать: ${escapeHtml(f.what_to_fix)}` : ""}</div>
+    </div>`;
+  });
+  html += `<div class="actions"><button class="again" onclick="reset()">Проверить ещё файл</button></div>`;
+  resultEl.innerHTML = html;
+  resultEl.classList.add("on");
+}
+
+function reset() {
+  resultEl.classList.remove("on");
+  progress.classList.remove("on");
+  fileInput.value = "";
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+async function handleFile(file) {
+  reset();
+  progress.classList.add("on");
+  sidEl.textContent = "(загрузка...)";
+  renderSteps("queued");
+  const fd = new FormData();
+  fd.append("file", file);
+  let resp;
+  try {
+    resp = await fetch("/api/v1/kmd/check", { method: "POST", body: fd });
+  } catch (e) {
+    resultEl.innerHTML = `<div class="err-banner">Сеть упала: ${escapeHtml(String(e))}</div>`;
+    resultEl.classList.add("on");
+    return;
+  }
+  if (!resp.ok) {
+    let detail = `HTTP ${resp.status}`;
+    try {
+      const j = await resp.json();
+      detail = j.detail || detail;
+    } catch (_) {}
+    resultEl.innerHTML = `<div class="err-banner">Сервер: ${escapeHtml(detail)}</div>`;
+    resultEl.classList.add("on");
+    progress.classList.remove("on");
+    return;
+  }
+  const { session_id } = await resp.json();
+  sidEl.textContent = session_id;
+
+  const es = new EventSource(`/api/v1/kmd/check/${session_id}/stream`);
+  es.addEventListener("status", e => {
+    const s = JSON.parse(e.data);
+    renderSteps(s.status);
+  });
+  es.addEventListener("done", e => {
+    const s = JSON.parse(e.data);
+    renderSteps(s.status);
+    renderResult(s);
+    es.close();
+  });
+  es.addEventListener("error", e => {
+    if (e.data) {
+      try {
+        const j = JSON.parse(e.data);
+        resultEl.innerHTML = `<div class="err-banner">${escapeHtml(j.detail || "stream error")}</div>`;
+        resultEl.classList.add("on");
+      } catch (_) {}
+    }
+    es.close();
+  });
+}
+</script>
+</body>
+</html>

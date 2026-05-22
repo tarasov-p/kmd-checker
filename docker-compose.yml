@@ -1,0 +1,18 @@
+services:
+  kmd-checker:
+    build: .
+    image: kmd-checker:latest
+    container_name: kmd-checker
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in .env}
+      OPENROUTER_HTTP_REFERER: https://github.com/tarasov-p/kmd-checker
+      OPENROUTER_X_TITLE: kmd-checker
+      KMD_LOG_LEVEL: INFO
+    volumes:
+      - kmd-tmp:/tmp
+
+volumes:
+  kmd-tmp: {}
