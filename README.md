@@ -55,12 +55,11 @@ docker compose up --build
 open http://localhost:8080
 ```
 
-## Локально без Docker
+## Локально без Docker (uv)
 
 ```bash
 # 1. зависимости
-python -m venv .venv && source .venv/bin/activate
-pip install -e .[dev]
+uv sync --group dev
 
 # 2. DWG-конвертер (только если планируете грузить DWG)
 brew install libredwg          # macOS
@@ -70,9 +69,12 @@ brew install libredwg          # macOS
 export OPENROUTER_API_KEY=sk-or-v1-...
 
 # 4. сервер
-kmd-checker server --reload
+uv run kmd-checker server --reload
 # или прямой проход без HTTP:
-kmd-checker check examples/example.pdf
+uv run kmd-checker check examples/example.pdf
+
+# тесты
+uv run pytest -q
 ```
 
 ## API
@@ -108,7 +110,7 @@ POST поддерживает query-параметр `?force=1` — пропус
 ## Тесты
 
 ```bash
-pytest -q
+uv run pytest -q
 ```
 
 Юниты:

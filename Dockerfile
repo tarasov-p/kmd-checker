@@ -2,22 +2,29 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/usr/local
 
 # DWG/DXF stack
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libredwg-bin \
         fonts-dejavu \
         ca-certificates \
+        curl \
     && rm -rf /var/lib/apt/lists/*
+
+# uv
+RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
-COPY pyproject.toml ./
-COPY src ./src
-COPY README.md ./
+# Сначала dep-файлы — чтобы кэшировать слой зависимостей
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
 
-RUN pip install --upgrade pip && pip install -e .
+# Остальной код
+COPY . .
+RUN uv sync --frozen --no-dev
 
 EXPOSE 8080
 
