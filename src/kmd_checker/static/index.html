@@ -103,6 +103,10 @@
 </div>
 
 <script>
+// API_BASE = путь к каталогу страницы (для работы под path-префиксом, напр. /kmd-checker/).
+// При открытии корня "/" → API_BASE = ""; при "/kmd-checker/" → "/kmd-checker".
+const API_BASE = window.location.pathname.replace(/\/[^/]*$/, '') || '';
+
 const ORDER = ["queued","converting","rendering","extracting","rules","judging","done"];
 const HUMAN = {
   queued: "Очередь",
@@ -226,7 +230,7 @@ async function handleFile(file) {
   fd.append("file", file);
   let resp;
   try {
-    resp = await fetch("/api/v1/kmd/check", { method: "POST", body: fd });
+    resp = await fetch(`${API_BASE}/api/v1/kmd/check`, { method: "POST", body: fd });
   } catch (e) {
     resultEl.innerHTML = `<div class="err-banner">Сеть упала: ${escapeHtml(String(e))}</div>`;
     resultEl.classList.add("on");
@@ -246,7 +250,7 @@ async function handleFile(file) {
   const { session_id } = await resp.json();
   sidEl.textContent = session_id;
 
-  const es = new EventSource(`/api/v1/kmd/check/${session_id}/stream`);
+  const es = new EventSource(`${API_BASE}/api/v1/kmd/check/${session_id}/stream`);
   es.addEventListener("status", e => {
     const s = JSON.parse(e.data);
     renderSteps(s.status);
