@@ -44,7 +44,7 @@ def check(file_path: Path, force: bool) -> None:
 
     ext = _detect_ext(file_path.name)
     if ext is None:
-        raise click.ClickException("only .pdf, .dwg, .dxf are supported")
+        raise click.ClickException("only .pdf and .dxf are supported")
 
     sid = "cli-" + datetime.now(UTC).strftime("%Y%m%d%H%M%S")
     tmp = make_tmp_dir(sid)

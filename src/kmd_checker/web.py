@@ -81,10 +81,9 @@ def _detect_ext(filename: str) -> Ext | None:
     name = filename.lower()
     if name.endswith(".pdf"):
         return "pdf"
-    if name.endswith(".dwg"):
-        return "dwg"
     if name.endswith(".dxf"):
         return "dxf"
+    # .dwg временно не поддерживается — нужен libredwg (отсутствует в slim-репозиториях)
     return None
 
 
@@ -105,7 +104,7 @@ async def kmd_check(request: Request, file: UploadFile, force: int = 0) -> dict:
         raise HTTPException(400, "filename required")
     ext = _detect_ext(file.filename)
     if ext is None:
-        raise HTTPException(415, "only .pdf, .dwg, .dxf are supported")
+        raise HTTPException(415, "only .pdf and .dxf are supported (DWG не поддерживается)")
 
     data = await file.read()
     if len(data) == 0:

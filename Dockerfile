@@ -1,24 +1,19 @@
-FROM ubuntu:24.04
+FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    DEBIAN_FRONTEND=noninteractive \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/usr/local
 
-# Python + DWG/DXF stack
+# Fonts для matplotlib (рендер DXF) + ca + curl для healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3.12 python3.12-venv python3-pip \
-        libredwg-bin \
         fonts-dejavu \
         ca-certificates \
         curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -sf /usr/bin/python3.12 /usr/local/bin/python \
-    && ln -sf /usr/bin/python3.12 /usr/local/bin/python3
+    && rm -rf /var/lib/apt/lists/*
 
-# uv (через pip с --break-system-packages: ubuntu 24.04 = PEP 668)
-RUN pip install --no-cache-dir --break-system-packages uv
+# uv
+RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 

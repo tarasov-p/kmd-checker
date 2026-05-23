@@ -29,7 +29,7 @@ Status = Literal[
     "failed",
     "cancelled",
 ]
-Ext = Literal["pdf", "dwg", "dxf"]
+Ext = Literal["pdf", "dxf"]
 
 
 class Finding(BaseModel):
