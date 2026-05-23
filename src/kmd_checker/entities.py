@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 Severity = Literal["high", "medium", "low"]
-Source = Literal["rules", "llm", "merged"]
+Source = Literal["llm"]
 Confidence = Literal["high", "medium", "low"]
 Verdict = Literal[
     "no_issues",
@@ -22,8 +22,6 @@ Status = Literal[
     "queued",
     "converting",
     "rendering",
-    "extracting",
-    "rules",
     "judging",
     "done",
     "failed",
@@ -35,7 +33,7 @@ Ext = Literal["pdf", "dxf"]
 class Finding(BaseModel):
     class_code: str
     severity: Severity
-    source: Source
+    source: Source = "llm"
     confidence: Confidence
     where: str
     what: str
@@ -43,44 +41,6 @@ class Finding(BaseModel):
     actual: str | None = None
     what_to_fix: str | None = None
     page_index: int | None = None
-
-
-class TitleBlock(BaseModel):
-    name: str | None = None
-    code: str | None = None
-    designation: str | None = None
-
-
-class SpecRow(BaseModel):
-    pos: int | None = None
-    name: str | None = None
-    code: str | None = None
-    qty: int | None = None
-    note: str | None = None
-
-
-class StampOnSheet(BaseModel):
-    sheet: int
-    designation: str | None = None
-    code: str | None = None
-
-
-class ExtractedFacts(BaseModel):
-    filename: str | None = None
-    main_title: TitleBlock = TitleBlock()
-    secondary_title_blocks: list[TitleBlock] = []
-    material: str | None = None
-    material_aisi: str | None = None
-    scale: str | None = None
-    sheet_no: str | None = None
-    sheets_total: str | None = None
-    left_right: Literal["l", "r"] | None = None
-    specification_rows: list[SpecRow] = []
-    tt_text: str | None = None
-    notes: list[str] = []
-    callouts: list[str] = []
-    stamps_on_each_sheet: list[StampOnSheet] = []
-    manual_marks_detected: bool = False
 
 
 class SessionState(BaseModel):
