@@ -10,6 +10,7 @@ from pathlib import Path
 
 from kmd_checker import settings
 from kmd_checker.entities import SessionState
+from kmd_checker.services import archive
 from kmd_checker.services.cad_to_pdf import CadConvertError, cad_to_pdf
 from kmd_checker.services.judge import is_drawing, judge_drawing
 from kmd_checker.services.pdf_render import page_count, render_pdf
@@ -18,19 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def _log_metrics(s: SessionState) -> None:
-    row = {
-        "event": "kmd_check_done",
-        "session_id": s.session_id,
-        "ext": s.ext,
-        "verdict": s.verdict,
-        "findings_count": len(s.findings),
-        "cost_usd": round(s.cost_usd, 4),
-        "duration_ms": s.duration_ms,
-        "total_pages": s.total_pages,
-        "error": s.error,
-        "ts": datetime.now(UTC).isoformat(),
-    }
-    logger.info("kmd_metrics %s", json.dumps(row, ensure_ascii=False))
+    logger.info("kmd_metrics %s", json.dumps(archive.metrics_row(s), ensure_ascii=False))
 
 
 async def run_pipeline(session: SessionState, file_bytes: bytes) -> None:
@@ -106,6 +95,12 @@ async def run_pipeline(session: SessionState, file_bytes: bytes) -> None:
         delta = (session.completed_at - session.started_at).total_seconds() * 1000
         session.duration_ms = int(delta)
         _log_metrics(session)
+        # Персистентный архив (входной файл + полный ответ + metrics.jsonl).
+        # cancelled пропускаем: проверка не завершена, tmp уже подчищен.
+        if session.status != "cancelled":
+            await archive.archive_session(
+                session, session.tmp_dir / session.original_filename
+            )
 
 
 def make_tmp_dir(session_id: str) -> Path:

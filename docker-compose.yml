@@ -11,8 +11,12 @@ services:
       OPENROUTER_HTTP_REFERER: https://github.com/tarasov-p/kmd-checker
       OPENROUTER_X_TITLE: kmd-checker
       KMD_LOG_LEVEL: INFO
+      KMD_ARCHIVE_DIR: /archive
     volumes:
       - kmd-tmp:/tmp
+      # Персистентный архив проверок (host bind-mount): входной файл,
+      # result.json по каждой сессии и общий metrics.jsonl. Переживает рестарт.
+      - ./data/archive:/archive
 
 volumes:
   kmd-tmp: {}
