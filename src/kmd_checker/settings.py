@@ -45,6 +45,10 @@ RATE_LIMIT_POST: str = _env("KMD_RATE_LIMIT_POST", "10/minute")
 # Disk guard
 TMP_FREE_BYTES_MIN: int = int(_env("KMD_TMP_FREE_BYTES_MIN", str(1_000_000_000)))  # 1 GB
 
+# Архив проверок (персистентные логи: входной файл + полный ответ + metrics.jsonl)
+ARCHIVE_ENABLED: bool = _env("KMD_ARCHIVE_ENABLED", "1").lower() not in ("0", "false", "no", "")
+ARCHIVE_DIR: Path = Path(_env("KMD_ARCHIVE_DIR", "/archive"))
+
 # Прочее
 LOG_LEVEL: str = _env("KMD_LOG_LEVEL", "INFO")
 

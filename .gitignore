@@ -17,3 +17,5 @@ build/
 .vscode/
 tmp/
 /tmp/kmd_session_*
+# Персистентный архив проверок (bind-mount)
+/data/
